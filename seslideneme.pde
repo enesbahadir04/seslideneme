@@ -32,6 +32,13 @@ float titresim = 6;      // parçacık titreşimi (düşük = daha keskin/net ko
 float sabitBoyut = 9;
 float minMesafe = 12;
 
+// --- Ritim / beat tepkisi ---
+float beatEsik = 1.4;     // bas enerjisi ortalamanın bu katını aşınca BEAT (düşür = daha hassas, daha çok beat)
+float darbeGucu = 55;     // beat anında parçacıkların merkezden dışa fırlama miktarı (px)
+float bassEnerjiOrt = 0;  // bas enerjisinin hareketli ortalaması (otomatik)
+float darbe = 0;          // anlık beat darbesi 0..1 (otomatik söner)
+int   sonBeatFrame = 0;   // çok sık tetiklenmeyi önler
+
 float zaman = 0;
 
 float sessizEsik = 0.04;
@@ -86,6 +93,13 @@ void draw() {
   midSmooth = sesOku(31, 150, midHassasiyet, midSmooth);
   tizSmooth = sesOku(151, bands - 1, tizHassasiyet, tizSmooth);
 
+  ritimAlgila();   // bas vuruşlarını yakala, 'darbe' değerini güncelle
+
+  // Beat anında çok hafif ekran parlaması (vuruş hissi)
+  noStroke();
+  fill(255, darbe * 18);
+  rect(0, 0, width, height);
+
   formOranlariniGuncelle();
   gruplariSesOraninaGoreAyarla();
 
@@ -115,6 +129,23 @@ float sesOku(int baslangic, int bitis, float hassasiyet, float eskiDeger) {
   yeniDeger = constrain(yeniDeger, 0, 1);
 
   return lerp(eskiDeger, yeniDeger, 0.05);
+}
+
+// Bas enerjisindeki ani sıçramaları yakalayıp 'darbe'yi tetikler (beat detection)
+void ritimAlgila() {
+  float toplam = 0;
+  for (int i = 0; i <= 30; i++) toplam += spectrum[i];
+  float ham = (toplam / 31.0) * basHassasiyet;   // anlık bas enerjisi
+
+  bassEnerjiOrt = lerp(bassEnerjiOrt, ham, 0.1);  // hareketli ortalama
+
+  // ani sıçrama + ortalamanın belirgin üstünde + min aralık (8 frame) + sessizlik filtresi
+  if (ham > 0.08 && ham > bassEnerjiOrt * beatEsik && frameCount - sonBeatFrame > 8) {
+    darbe = 1.0;
+    sonBeatFrame = frameCount;
+  }
+
+  darbe *= 0.88;   // darbe yumuşakça söner
 }
 
 void formOranlariniGuncelle() {
@@ -547,10 +578,24 @@ class Sekiller {
   }
 
   void ciz() {
-    // Boyut sabit — parçacıklar ses ile BÜYÜMÜYOR
+    // Beat darbesi: parçacığı merkezden dışa fırlat (boyut SABİT, sadece konum kayar)
+    float cx = width / 2.0;
+    float cy = height / 2.0;
+    float dx = x - cx;
+    float dy = y - cy;
+    float uzaklik = sqrt(dx * dx + dy * dy);
+    float nx = (uzaklik > 0) ? dx / uzaklik : 0;
+    float ny = (uzaklik > 0) ? dy / uzaklik : 0;
+
+    float gx = x + nx * darbe * darbeGucu;
+    float gy = y + ny * darbe * darbeGucu;
+
+    // Beat anında parlama — renk kimliği korunur, sadece ışıldar
+    color parlakRenk = lerpColor(renk, color(255), darbe * 0.5);
+
     pushMatrix();
-    translate(x, y);
-    fill(renk, 255);
+    translate(gx, gy);
+    fill(parlakRenk, 255);
     shape(sekiller[grup], 0, 0, sabitBoyut, sabitBoyut);
     popMatrix();
   }
