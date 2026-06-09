@@ -24,7 +24,10 @@ float midForm = 0.333;
 float tizForm = 0.334;
 
 float formGecisHizi = 0.045;
-float hareketGecisHizi = 0.035;
+float hareketGecisHizi = 0.06;   // şekle daha hızlı oturma -> daha net kontur
+
+float keskinlik = 3.0;   // şekil netliği: 1 = yumuşak karışım, yüksek = baskın bandın şekli net belirir
+float titresim = 6;      // parçacık titreşimi (düşük = daha keskin/net kontur)
 
 float sabitBoyut = 9;
 float minMesafe = 12;
@@ -131,6 +134,19 @@ void formOranlariniGuncelle() {
     hedefBas = basSmooth / toplamSes;
     hedefMid = midSmooth / toplamSes;
     hedefTiz = tizSmooth / toplamSes;
+
+    // Keskinlik: baskın bandın şekli net belirsin diye oranları güçlendir
+    // (örn. bas baskınsa parçacıklar bulanık ortalama yerine net bas şekline gider)
+    hedefBas = pow(hedefBas, keskinlik);
+    hedefMid = pow(hedefMid, keskinlik);
+    hedefTiz = pow(hedefTiz, keskinlik);
+    float toplamHedef = hedefBas + hedefMid + hedefTiz;
+    if (toplamHedef > 0) {
+      hedefBas /= toplamHedef;
+      hedefMid /= toplamHedef;
+      hedefTiz /= toplamHedef;
+    }
+
     hedefSessizForm = 0.0;
   }
 
@@ -518,8 +534,8 @@ class Sekiller {
     float hedefX = lerp(aktifX, dikeyX, sessizForm);
     float hedefY = lerp(aktifY, dikeyY, sessizForm);
 
-    float noiseX = map(noise(seed, zaman), 0, 1, -18, 18);
-    float noiseY = map(noise(seed + 500, zaman), 0, 1, -18, 18);
+    float noiseX = map(noise(seed, zaman), 0, 1, -titresim, titresim);
+    float noiseY = map(noise(seed + 500, zaman), 0, 1, -titresim, titresim);
 
     x = lerp(x, hedefX + noiseX, hareketGecisHizi);
     y = lerp(y, hedefY + noiseY, hareketGecisHizi);
@@ -531,22 +547,11 @@ class Sekiller {
   }
 
   void ciz() {
-    float sesEtki = 0;
-
-    if (grup == 0) {
-      sesEtki = basSmooth;
-    } else if (grup == 1) {
-      sesEtki = midSmooth;
-    } else {
-      sesEtki = tizSmooth;
-    }
-
-    float dinamikBoyut = sabitBoyut + sesEtki * 10;
-
+    // Boyut sabit — parçacıklar ses ile BÜYÜMÜYOR
     pushMatrix();
     translate(x, y);
     fill(renk, 255);
-    shape(sekiller[grup], 0, 0, dinamikBoyut, dinamikBoyut);
+    shape(sekiller[grup], 0, 0, sabitBoyut, sabitBoyut);
     popMatrix();
   }
 }
