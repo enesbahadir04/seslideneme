@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Processing - dışa aktarılan uygulamalar ve geçici çıktılar
+applet/
+out/
+build/
+application.windows32/
+application.windows64/
+application.linux32/
+application.linux64/
+application.linux-arm64/
+application.macosx/
+
+# Geçici dosyalar
+*.tmp
+*~
